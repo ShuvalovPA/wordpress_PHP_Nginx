@@ -1,0 +1,132 @@
+- name: Add nginx repository
+  become: yes
+  apt_repository: repo='ppa:nginx/stable'
+
+- name: Install Nginx Web Server on Debian Family
+  become: yes
+  apt:
+    name=nginx
+    state=latest
+
+- name: Installing NGINX Dependencies
+  become: yes
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+  with_items:
+    - libssl-dev
+    - zlib1g-dev
+    - libpcre3
+    - libpcre3-dev
+    - unzip
+#  when: not nginx.stat.exists
+
+- name: git nginx-vts
+  ansible.builtin.git:
+    repo: 'https://github.com/vozlt/nginx-module-vts.git'
+    dest: /tmp/nginx-module-vts
+#  when: not nginx.stat.exists
+
+- name: Downloading NGINX sources
+  get_url:
+    url: "{{ nginx_tarball_url }}"
+    dest: "/tmp/{{ nginx_version }}.tar.gz"
+  register: nginx_source
+#  when: not nginx.stat.exists
+
+- name: Unpacking NGINX
+  unarchive:
+    copy: no
+    dest: /tmp/
+    src: "{{ nginx_source.dest }}"
+#  when: nginx_source.changed
+  register: nginx_source_unpack
+#  when: not nginx.stat.exists
+
+- name: Create required Nginx dirs
+  become: yes
+  file:
+    path: /etc/nginx
+    state: directory
+    owner: root
+    mode: 0755
+#  when: not nginx.stat.exists
+
+- name: Configuring NGINX source with custom modules
+  command: "./configure --sbin-path={{ nginx_sbin_path }} --conf-path={{ nginx_conf_path }} {{ nginx_custom_modules }}"
+  args:
+    chdir: "{{ nginx_install_dir }}"
+#  when: nginx_source_unpack|changed
+  register: nginx_configure
+#  when: not nginx.stat.exists
+
+- name: Installing NGINX
+  become: yes
+  shell: make && make install
+  args:
+    chdir: "{{ nginx_install_dir }}"
+#  when: nginx_configure|changed
+#  when: not nginx.stat.exists
+
+- name: Creating NGINX conf file
+  become: yes
+  template:
+    src: nginx.conf
+    dest: "{{ nginx_conf_path }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0644
+
+- name: Installing NGINX init script (init)
+  become: yes
+  template:
+    src: nginx.init
+    dest: /etc/init.d/nginx
+    owner: root
+    group: root
+    mode: 0755
+    
+- name: Installing NGINX init script (service)
+  become: yes
+  template:
+    src: nginx.service
+    dest: /lib/systemd/system/nginx.service
+    owner: root
+    group: root
+    mode: 0755
+    
+- name: Disable default site
+  become: yes
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Create a directory /var/cache/nginx/client_temp
+  ansible.builtin.file:
+    path: /var/cache/nginx/client_temp
+    state: directory
+    mode: '0755'
+    
+- name: Create a directory /etc/nginx/sites-available
+  ansible.builtin.file:
+    path: /etc/nginx/sites-available
+    state: directory
+    mode: '0755'
+    
+- name: Create a directory /etc/nginx/sites-enabled
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled
+    state: directory
+    mode: '0755'
+
+- name: Starting NGINX
+  become: yes
+  service:
+    name: nginx
+    state: started
+    
+- name: restart NGINX
+  become: yes
+  service:
+    name: nginx
+    state: restarted

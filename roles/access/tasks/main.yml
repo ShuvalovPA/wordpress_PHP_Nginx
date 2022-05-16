@@ -1,0 +1,17 @@
+---
+- name: Copy authorized_keys to servers
+  become: yes
+  ansible.builtin.copy:
+    src: authorized_keys
+    dest: /home/ubuntu/.ssh/authorized_keys
+    owner: ubuntu
+    group: ubuntu
+    mode: '0400'
+    
+- name: Copy id_rsa
+  ansible.builtin.copy:
+    src: ../../.ssh/id_key
+    dest: /home/ubuntu/.ssh/id_rsa
+    owner: ubuntu
+    group: ubuntu
+    mode: '0400'

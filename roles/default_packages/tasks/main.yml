@@ -1,0 +1,11 @@
+- name: Install Packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+  with_items:
+    - tmux
+    - htop
+    - tree
+    - mc
+    - iotop

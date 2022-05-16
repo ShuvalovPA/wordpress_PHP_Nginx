@@ -1,0 +1,42 @@
+---
+- name: search wordpress
+  stat:
+    path: /var/www/wordpress/wp-config.php
+  register: wordpress
+  
+- name: install nginx config
+  become: yes
+  template:
+    src: wordpress.j2
+    dest: /etc/nginx/sites-available/wordpress
+  notify: restart nginx
+  
+- name: activate site configuration
+  become: yes
+  shell: "sudo ln -sf /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/"
+  notify: restart nginx
+
+- name: download WordPress
+  get_url:
+    url: "{{ download_url }}"
+    dest: "/tmp/latest.tar.gz"
+  when: not wordpress.stat.exists
+
+- name: creating directory for WordPress
+  file:
+    path: "/var/www/wordpress"
+    state: "directory"
+    owner: "ubuntu"
+    group: "ubuntu"
+    mode: "0777"
+  when: not wordpress.stat.exists
+
+- name: unpack WordPress installation
+  shell: "tar xvfz /tmp/latest.tar.gz -C /var/www/ && chown -R ubuntu:ubuntu /var/www/wordpress && chmod 777 -R /var/www/wordpress"
+  when: not wordpress.stat.exists
+
+#- name: update wp-config
+#  become: yes
+#  template:
+#    src: wp-config.php
+#    dest: /var/www/wordpress/wp-config.php

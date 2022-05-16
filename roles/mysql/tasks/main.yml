@@ -1,0 +1,45 @@
+---
+- name: search mysql
+  stat:
+    path: /usr/sbin/mysqld
+  register: mysql
+  
+- name: Install MySQL
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+  with_items:
+    - python3-mysqldb
+    - mysql-server-8.0
+  when: not mysql.stat.exists
+
+
+- name: Start the MySQL service
+  action: service name=mysql state=started
+  when: not mysql.stat.exists
+  
+- name: Create a new database
+  mysql_db:
+    name: wordpress
+    state: present
+    check_implicit_admin: true
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    
+- name: create user mysql
+  mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    priv: '*.*:ALL'
+    host: '%'
+    state: present
+    check_implicit_admin: true
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Enable remote login to mysql
+  template:
+    src: mysqld.cnf.j2
+    dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+    mode: '0777'
+    
+- name: Start the MySQL service
+  action: service name=mysql state=restarted

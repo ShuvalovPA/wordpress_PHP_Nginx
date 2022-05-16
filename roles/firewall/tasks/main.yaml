@@ -1,0 +1,73 @@
+- name: install firewalld service
+  become: yes
+  apt:
+    name: firewalld
+    update_cache: yes
+
+- name: enable firewalld
+  service:
+    name: firewalld
+    state: started
+
+- name: permit traffic through port 80/tcp (http)
+  ansible.builtin.firewalld:
+    zone: public
+    service: http
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['webservers'] or inventory_hostname in groups['load_balancer']
+
+- name: permit traffic through port 443/tcp (https)
+  ansible.builtin.firewalld:
+    zone: public
+    service: https
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['load_balancer']
+
+- name: permit traffic through port 22/tcp (ssh)
+  ansible.builtin.firewalld:
+    zone: public
+    service: ssh
+    permanent: yes
+    state: enabled
+
+- name: permit traffic through port 3306/tcp (mysql)
+  ansible.builtin.firewalld:
+    zone: public
+    service: mysql
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['mysql']
+
+- name: permit traffic through port 9100/tcp (node_exporter)
+  ansible.posix.firewalld:
+    port: 9100/tcp
+    permanent: yes
+    state: enabled
+
+- name: permit traffic through port 9090tcp (prometheus/alertmanager)
+  ansible.posix.firewalld:
+    port: 9090-9094/tcp
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['monitoring']
+
+- name: permit traffic through port 3000tcp (grafana)
+  ansible.posix.firewalld:
+    port: 3000/tcp
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['monitoring']
+
+- name: permit traffic through port 9913/tcp (nginx_vts)
+  ansible.posix.firewalld:
+    port: 9913/tcp
+    permanent: yes
+    state: enabled
+  when: inventory_hostname in groups['webservers'] or inventory_hostname in groups['load_balancer']
+
+- name: restart service firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: restarted
